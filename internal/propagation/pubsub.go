@@ -17,18 +17,18 @@ const (
 )
 
 // SpanContextFromMessage extracts a pubsub span context from message.
-func SpanContextFromMessage(m *pubsub.Message) (trace.SpanContext, bool) {
+func SpanContextFromMessage(m *pubsub.Message) trace.SpanContext {
 	if m.Attributes == nil {
-		return trace.SpanContext{}, false
+		return trace.SpanContext{}
 	}
 
 	tid, ok := parseTraceID(m.Attributes[TraceIDField])
 	if !ok {
-		return trace.SpanContext{}, false
+		return trace.SpanContext{}
 	}
 	sid, ok := parseSpanID(m.Attributes[SpanIDField])
 	if !ok {
-		return trace.SpanContext{}, false
+		return trace.SpanContext{}
 	}
 	sampled := parseSampled(m.Attributes[SampledField])
 
@@ -36,7 +36,7 @@ func SpanContextFromMessage(m *pubsub.Message) (trace.SpanContext, bool) {
 		TraceID:      tid,
 		SpanID:       sid,
 		TraceOptions: sampled,
-	}, true
+	}
 }
 
 func parseTraceID(t string) (trace.TraceID, bool) {
