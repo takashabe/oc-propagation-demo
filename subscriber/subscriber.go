@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/takashabe/oc-propagation-demo/internal/exporter"
@@ -16,7 +15,6 @@ import (
 func main() {
 	exporter.InitStackdriver(os.Getenv("PROJECT_ID"))
 
-	log.Println("start subscriber...")
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, os.Getenv("PROJECT_ID"))
 	if err != nil {
@@ -29,9 +27,11 @@ func main() {
 		err := subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 			defer msg.Ack()
 			sc := propagation.SpanContextFromMessage(msg)
-			log.Println(sc.SpanID, sc.TraceID, (msg.Data), msg.Attributes)
-			ctx, span := trace.StartSpanWithRemoteParent(ctx, "receive", sc)
-			time.Sleep(100 * time.Millisecond)
+			_, span := trace.StartSpanWithRemoteParent(ctx, "receive", sc)
+			span.AddAttributes(
+				trace.StringAttribute("TraceID", sc.TraceID.String()),
+				trace.StringAttribute("SpanID", sc.SpanID.String()),
+			)
 			span.End()
 		})
 		if err != nil {

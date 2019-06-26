@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,14 +16,20 @@ import (
 func main() {
 	exporter.InitStackdriver(os.Getenv("PROJECT_ID"))
 
+	client, err := pubsub.NewClient(context.Background(), os.Getenv("PROJECT_ID"))
+	if err != nil {
+		panic(err)
+	}
+	topic := client.Topic(os.Getenv("PUBSUB_TOPIC"))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		ctx, span := trace.StartSpan(req.Context(), "publish")
 
-		client, err := pubsub.NewClient(ctx, os.Getenv("PROJECT_ID"))
-		if err != nil {
-			panic(err)
-		}
-		topic := client.Topic(os.Getenv("PUBSUB_TOPIC"))
+		sc := span.SpanContext()
+		span.AddAttributes(
+			trace.StringAttribute("TraceID", sc.TraceID.String()),
+			trace.StringAttribute("SpanID", sc.SpanID.String()),
+		)
 
 		msg := &pubsub.Message{
 			Data: []byte(fmt.Sprintf("oc-demo: %s", req.URL)),
